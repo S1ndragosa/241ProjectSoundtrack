@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Now Playing</title>
+    <script>
+        async function fetchCurrentTrack() {
+            console.log("Fetching current track...");
+            try {
+                const response = await fetch('/current_track');
+                const data = await response.json();
+                console.log("Data received:", data);
+                document.getElementById('track_info').textContent = `${data.track_name} by ${data.artist_name}`;
+                document.getElementById('album_cover').src = data.image_url;
+                document.getElementById('lyrics').textContent = data.lyrics || 'Lyrics not found';
+                console.log("Lyrics updated:", data.lyrics || 'Lyrics not found');
+            } catch (error) {
+                console.error('Error fetching current track:', error);
+            }
+        }
+
+        function startFetching() {
+            console.log("Starting fetching...");
+            fetchCurrentTrack();
+            setInterval(fetchCurrentTrack, 5000);  // Fetch current track every 5 seconds
+            // can set interval
+        }
+
+        window.onload = startFetching;
+    </script>
+</head>
+<body>
+    <h1>Currently Playing Track</h1>
+    <div>
+        <img id="album_cover" src="" alt="Album Cover" style="width:300px; height:300px;">
+        <p id="track_info">Track Name by Artist Name</p>
+        <p><a href ='/pause'>Pause Song</a><br><a href ='/start'>Play Song</a><br><a href ='/skipPrompt'>Skip Song</a></p>
+        <pre id="lyrics"></pre> <!-- Using <pre> to preserve formatting of lyrics -->
+    </div>
+</body>
+</html>
