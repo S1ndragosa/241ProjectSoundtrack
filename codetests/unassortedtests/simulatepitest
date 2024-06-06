@@ -1,0 +1,23 @@
+import requests
+from flask import jsonify, Flask
+flask_server_url = 'http://10.42.61.55:5000'
+dict1 = {"Items": []}
+# print(dict1)
+# for i in range(0, 3):
+#     dict1["Items"].append({f"Age": "18-25", "Emotion" : i})
+#     i += 1
+dict1["Items"].append({f"Age": "25-30", "Emotion" : 'sad'})
+dict1["Items"].append({f"Age": "18-25", "Emotion" : 'sad'})
+dict1["Items"].append({f"Age": "18-25", "Emotion" : 'sad'})
+dict1["Items"].append({f"Age": "25-30", "Emotion" : 'sad'})
+
+try:
+    response = requests.post(f'{flask_server_url}/receive_data', json=dict1)
+    response.raise_for_status()  # This will raise an HTTPError for bad responses
+    print("Data sent successfully")
+except requests.exceptions.HTTPError as err:
+    print(f"HTTP error occurred: {err}")  # Ex: 404 Not Found
+except requests.exceptions.ConnectionError as err:
+    print(f"Connection error occurred: {err}")
+except requests.exceptions.RequestException as err:
+    print(f"An error occurred: {err}")
