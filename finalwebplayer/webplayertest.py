@@ -1,0 +1,106 @@
+import spotipy
+from dotenv import load_dotenv
+import os
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
+import spotipy.util as util
+from flask import Flask, jsonify, redirect, session, request, render_template
+import urllib.parse
+import json
+import requests
+import lyricsgenius
+
+
+load_dotenv()
+client_id = os.getenv("SPOTIPY_CLIENT_ID")
+client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
+redirect_uri = os.getenv("SPOTIPY_REDIRECT_URI")
+username = os.getenv("SPOTIPY_USERNAME")
+playlist = os.getenv("SPOTIPY_PLAYLIST")
+genius_access_token = os.getenv("GENIUS_ACCESS_TOKEN")
+
+scope = ['user-read-currently-playing', 'user-modify-playback-state', 'playlist-modify-public', 'playlist-modify-private', 'playlist-read-private', 'user-read-playback-state']
+
+genius = lyricsgenius.Genius(genius_access_token)
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id, client_secret, redirect_uri, scope))
+token = util.prompt_for_user_token(username, scope,client_id,client_secret,redirect_uri)
+if token:
+    sp = spotipy.Spotify(auth=token)
+else:
+    print("Can't get token for", username)
+
+app = Flask(__name__)
+app.secret_key = '123'
+
+
+
+def get_lyrics(track_name, artist_name):
+    try:
+        song = genius.search_song(track_name, artist_name)
+        if song:
+            # Post-process the lyrics to clean up extra descriptions
+            lyrics = song.lyrics
+            # Remove any text before the actual lyrics, often in the format '[...] Lyrics'
+            lyrics = lyrics.split('\n', 1)[1] if '\n' in lyrics else lyrics
+            
+            # Remove all lines that start with '['
+            lyrics_lines = lyrics.split('\n')
+            lyrics_lines = [line for line in lyrics_lines if not line.strip().startswith('[')]
+            clean_lyrics = '\n'.join(lyrics_lines)
+            
+            return clean_lyrics
+    except Exception as e:
+        print(f"Error fetching lyrics: {e}")
+    return None
+
+@app.route('/')
+def index():
+    return render_template('template.html')
+
+@app.route('/current_track')
+def current_track():
+    current_playback = sp.current_playback()
+    if current_playback and current_playback['is_playing']:
+        track = current_playback['item']
+        track_name = track['name']
+        artist_name = track['artists'][0]['name']
+        track_imageurl = track['album']['images'][0]['url']
+        lyrics = get_lyrics(track_name, artist_name)
+        return jsonify({
+            'track_name': track_name,
+            'artist_name': artist_name,
+            'image_url': track_imageurl,
+            'lyrics': lyrics
+        })
+    else:
+        return jsonify({
+            'track_name': 'No track is currently playing',
+            'artist_name': '',
+            'image_url': '',
+            'lyrics': ''
+        })
+
+@app.route('/start')
+def start():
+    sp.start_playback()
+    return redirect('/')
+
+@app.route('/pause')
+def pause():
+    sp.pause_playback()
+    return redirect('/')
+ 
+# @app.route('/skipPrompt')
+# def skipPrompt():
+#     queue = sp.queue()
+#     next_song = queue['queue'][0]
+#     next_artist = next_song['artists'][0]['name']
+#     return f"Do you want to skip to your next song? Next song is {next_song['name']} By {next_artist} <br><a href ='/'>No</a> <a href ='/skip'>Yes</a>"
+
+@app.route('/skip')
+def skip():
+    sp.next_track()
+    return redirect('/')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=True)
