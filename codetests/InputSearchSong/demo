@@ -1,0 +1,52 @@
+import os
+import io
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
+import spotipy.util as util
+import json
+
+
+# reads .txt file to get api keys
+input_file = open('C:/Users/Tyang/OneDrive - The University of Waikato/COMPX241P/keys.txt', 'r')
+list_codes = input_file.readlines()
+client_id = list_codes[0].strip()
+client_secret = list_codes[1].strip()
+redirect_uri = list_codes[2].strip()
+username = list_codes[3].strip()
+scope = ['user-read-currently-playing', 'user-modify-playback-state', 'playlist-modify-public', 'playlist-modify-private']
+play_list = list_codes[4].strip()
+song_list = []
+cont = ""
+
+
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id, client_secret, redirect_uri, scope))
+token = util.prompt_for_user_token(username, scope,client_id,client_secret,redirect_uri)
+if token:
+    sp = spotipy.Spotify(auth=token)
+else:
+    print("Can't get token for", username)
+
+
+# pretty_json = json.dumps(spot_search, indent=4)
+# output_file = open("output.txt", "w")
+# output_file.write(pretty_json)
+def add_song(search_song):
+    spot_search = sp.search(search_song, limit = 10, offset=0, type='track', market="NZ")
+    artist = spot_search["tracks"]["items"][0]["artists"][0]["name"]
+    song = spot_search["tracks"]["items"][0]["id"]
+    sp.add_to_queue(song)
+    print(f"Playing: {search_song}({song}) by {artist}")
+    song_list.append("spotify:track:"+song)
+while cont.upper() != "STOP":
+    search_song = input("What song would you like to play? ")
+    add_song(search_song)
+    cont = input("Type STOP if you want to end the loop, else type anything else: ")
+
+
+
+
+
+print("Adding songs into the playlist...")
+sp.playlist_add_items(play_list, song_list, position=None)
+print("Completed adding songs into the playlist")
