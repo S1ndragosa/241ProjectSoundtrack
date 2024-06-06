@@ -1,0 +1,128 @@
+import cv2
+from deepface import DeepFace
+import os
+import threading
+import time
+from collections import Counter
+import requests
+import keyboard
+
+# Load face detection model
+faceProto = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/opencv_face_detector.pbtxt"
+faceModel = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/opencv_face_detector_uint8.pb"
+ageProto = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/age_deploy.prototxt"
+ageModel = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/age_net.caffemodel"
+genderProto = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/gender_deploy.prototxt"
+genderModel = "E:\Facial-Emotion-Recognition-using-OpenCV-and-Deepface/gender_net.caffemodel" ##remove hardcode values
+
+# Ensure the paths to the models are correct
+if not (os.path.isfile(faceProto) and os.path.isfile(faceModel) and os.path.isfile(ageProto) and os.path.isfile(ageModel) and os.path.isfile(genderProto) and os.path.isfile(genderModel)):
+    raise FileNotFoundError("One or more model files are missing. Ensure all model files are in the correct directory.")
+
+MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
+ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
+genderList = ['Male', 'Female']
+
+faceNet = cv2.dnn.readNet(faceModel, faceProto)
+ageNet = cv2.dnn.readNet(ageModel, ageProto)
+genderNet = cv2.dnn.readNet(genderModel, genderProto)
+
+# Load face cascade classifier
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Initialize variables to store age and emotion data
+age_data = []
+emotion_data = []
+lock = threading.Lock()
+dict1 = {"Items": []}
+flask_server_url = 'http://10.24.60.4:5000'
+min_counter = 1
+is_pressed = False
+
+
+def send_data():
+    try:
+        response = requests.post(f'{flask_server_url}/receive_data', json = dict1)
+        response.raise_for_status()  # This will raise an HTTPError for bad responses
+        print("Data sent successfully")
+        dict1["Items"] = [] #clears items in the json so it can write again
+    except requests.exceptions.HTTPError as err:
+        print(f"HTTP error occurred: {err}")  # Ex: 404 Not Found
+    except requests.exceptions.ConnectionError as err:
+        print(f"Connection error occurred: {err}")
+    except requests.exceptions.RequestException as err:
+        print(f"An error occurred: {err}")
+
+
+def highlightFace(net, frame, conf_threshold=0.7):
+    frameOpencvDnn = frame.copy()
+    frameHeight = frameOpencvDnn.shape[0]
+    frameWidth = frameOpencvDnn.shape[1]
+    blob = cv2.dnn.blobFromImage(frameOpencvDnn, 1.0, (300, 300), [104, 117, 123], True, False)
+
+    net.setInput(blob)
+    detections = net.forward()
+    faceBoxes = []
+    for i in range(detections.shape[2]):
+        confidence = detections[0, 0, i, 2]
+        if confidence > conf_threshold:
+            x1 = int(detections[0, 0, i, 3] * frameWidth)
+            y1 = int(detections[0, 0, i, 4] * frameHeight)
+            x2 = int(detections[0, 0, i, 5] * frameWidth)
+            y2 = int(detections[0, 0, i, 6] * frameHeight)
+            faceBoxes.append([x1, y1, x2, y2])
+            cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), int(round(frameHeight / 150)), 8)
+    return frameOpencvDnn, faceBoxes
+
+# Start capturing video
+video = cv2.VideoCapture(0)
+padding = 20
+
+while True:
+    if keyboard.is_pressed('q'):
+        print('Exiting program.')
+        break
+    hasFrame, frame = video.read()
+    if not hasFrame:
+        cv2.waitKey()
+        break
+
+    resultImg, faceBoxes = highlightFace(faceNet, frame)
+    if not faceBoxes:
+        print("No face detected")
+
+    for faceBox in faceBoxes:
+        face = frame[max(0, faceBox[1] - padding):
+                     min(faceBox[3] + padding, frame.shape[0] - 1), max(0, faceBox[0] - padding)
+                     :min(faceBox[2] + padding, frame.shape[1] - 1)]
+
+        # Gender and age prediction
+        blob = cv2.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
+        
+        genderNet.setInput(blob)
+        genderPreds = genderNet.forward()
+        gender = genderList[genderPreds[0].argmax()]
+
+        ageNet.setInput(blob)
+        agePreds = ageNet.forward()
+        age = ageList[agePreds[0].argmax()]
+
+        # Emotion analysis
+        result = DeepFace.analyze(face, actions=['emotion'], enforce_detection=False)
+        emotion = result[0]['dominant_emotion']
+        dict1["Items"].append({"Age": age, "Emotion" : emotion})
+        with lock:
+            emotion_data.append(emotion)  # Add emotion to the data list
+        
+        if min_counter % 12 == 0:
+            send_data()
+        #wait 2 seconds
+        time.sleep(1)
+        min_counter += 1
+        print(min_counter)
+        print(dict1)
+    
+
+# Release the capture and close all windows
+video.release()
+cv2.destroyAllWindows()
