@@ -19,7 +19,7 @@ Team Members:
 
 
 <h1>How to use the three files</h1>
-The project is split between three different parts, Webserver, Webplayer and Client(Raspberry Pi), The client has to have the web server's ip address to be able to send data to the server, so it must be manually changed if the IP address changes. The Webserver should not have any requirements for it to run other than the packages needed, and the web player is similar.
+The project is split between three different parts, Webserver, Webplayer and Client( Raspberry Pi in our case ), The client has to have the web server's ip address to be able to send data to the server, so it must be manually changed if the IP address changes. The Webserver should not have any requirements for it to run other than the packages needed, and the web player is similar.
 
 <h2>Previous test files</h2>
 They are stored en masse in codetests, usually only used to test code in isolation to see how it interacts with our already written code.
