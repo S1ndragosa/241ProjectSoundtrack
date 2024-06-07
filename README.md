@@ -1,6 +1,6 @@
-Project for University of Waikato COMPX241, to play a fitting song using age estimation software.
-
-The highest version indicates the final product shown in the presentation
+<h1>Project for University of Waikato COMPX241</h1>
+<h2>Aim of the project:</h2>
+Use the live CCTV footage that a restaurant or bar typically has to estimate the age of its patrons, and from that determine what the song playlist should be.
 
 <h1>Group Members:</h1>
 Project Manager:
@@ -23,3 +23,6 @@ The project is split between three different parts, Webserver, Webplayer and Cli
 
 <h2>Previous test files</h2>
 They are stored en masse in codetests, usually only used to test code in isolation to see how it interacts with our already written code.
+
+<h2>Final version of our programs:</h2>
+The highest version indicates the final product shown in the presentation.
