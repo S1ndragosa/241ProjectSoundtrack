@@ -13,7 +13,7 @@ while True:
         print("Failed to grab frame")
         break
 
-    img_name = "opencv_frameq.png"
+    img_name = "opencv_frame.png"
     cv2.imwrite(img_name, frame)
     print("{} written!".format(img_name))
 
@@ -29,10 +29,3 @@ while True:
     
     # Wait for a short period before capturing the next frame
     time.sleep(4)  # Adjust the sleep time as needed
-
-    # Press 'q' to break out of the loop
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cam.release()
-cv2.destroyAllWindows()
